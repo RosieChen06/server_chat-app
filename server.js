@@ -27,10 +27,6 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('receive_msg', msg)
     })
 
-    socket.on('login', (msg) => {
-        socket.broadcast.emit('receiveLog', msg)
-    })
-
     socket.on('disconnect', () => {
         console.log('user left')
     });

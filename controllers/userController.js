@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt'
 import { v2 as cloudinary } from 'cloudinary'
 import userModel from '../models/userModel.js'
-import googleUserModel from '../models/googleLogin.js'
+import ConversationModel from '../models/ConversationModel.js'
 
 const userSignUp = async (req, res) => {
 
@@ -14,13 +14,13 @@ const userSignUp = async (req, res) => {
     // const imageUpload = await cloudinary.uploader.upload(image.path, {resource_type:'image'})
     // const imageUrl = imageUpload.secure_url
 
-    const mail_start = email.split('@')[0].toLowerCase()
-    const mail = mail_start + '@' + email.split('@')[1]
+    const mail = email.toLowerCase()
 
     const userData = {
       name,
       mail,
-      password: hashedPassword
+      password: hashedPassword,
+      type: 'sign-up'
     }
 
     const isExist = await userModel.find({mail:mail})
@@ -42,17 +42,17 @@ const userLogin = async (req, res) => {
 
   try {
     const {email, password } = req.body
-    const mail_start = email.split('@')[0].toLowerCase()
-    const mail = mail_start + '@'  + email.split('@')[1]
+    const mail = email.toLowerCase()
     
-    const isAccountExist = await userModel.findOne({mail})
+    const isAccountExist = await userModel.findOne({mail: mail, type: 'sign-up'})
+
     if(isAccountExist){
       const hashedPasswordFromDB = isAccountExist.password;
       const isMatch = await bcrypt.compare(password, hashedPasswordFromDB);
       if(isMatch){
         res.json({success:true, message:isAccountExist})
       }else{
-        res.json({success:false, message:'Password Incorrect '})
+        res.json({success:false, message:'Password Incorrect'})
       }
     }else{
       res.json({success:false, message:'User does not exist'})
@@ -67,21 +67,21 @@ const googleLogin = async (req, res) => {
 
   try {
     const {email, name, picture} = req.body
-    const mail_start = email.split('@')[0].toLowerCase()
-    const mail = mail_start + '@' + email.split('@')[1]
-    
-    const isAccountExist = await googleUserModel.findOne({mail})
+    const mail = email.toLowerCase()
+
+    const isAccountExist = await userModel.findOne({mail:mail, type: 'google'})
     if(isAccountExist){
-      res.json({success:true})
+      res.json({success:true, message: isAccountExist})
     }else{
       const userData = {
         name,
         mail,
-        image: picture
+        image: picture,
+        type: 'google'
       }
-      const newRecord = new googleUserModel(userData)
+      const newRecord = new userModel(userData)
       await newRecord.save()
-      res.json({success:false})
+      res.json({success:true, message: userData})
     }
   } catch (err) {
     console.log(err)
@@ -89,4 +89,72 @@ const googleLogin = async (req, res) => {
   }
 }
 
-export {userSignUp, userLogin, googleLogin}
+const friendListManagement = async (req, res) => {
+
+  try {
+    const {email, type, friendList, TAmail} = req.body
+    const mail = email.toLowerCase()
+
+    const isAccountExist = await userModel.findOne({mail:TAmail})
+    if(isAccountExist){
+
+      const updatedUser = await userModel.findOneAndUpdate(
+        { mail, type }, 
+        { $addToSet: { friendList: TAmail } },
+        { new: true }
+      );
+
+      const syncFriendList = await userModel.findOneAndUpdate(
+        { mail: TAmail }, 
+        { $addToSet: { friendList: mail } },
+      );
+
+      console.log(syncFriendList)
+      
+      res.json({success:true, message: updatedUser.friendList})
+    }else{
+      res.json({success:false, message: 'Can not find the user'})
+    }
+
+  } catch (err) {
+    console.log(err)
+    res.json({success:false})
+  }
+}
+
+const saveConversationRecord = async (req, res) => {
+
+  try {
+    const {sender, receiver, msgDetail} = req.body
+
+    const isConversationExist = await ConversationModel.findOne({sender, receiver})
+    if(isConversationExist){
+      await ConversationModel.updateOne(
+        { sender, receiver }, 
+        { $push: { msg:  JSON.parse(JSON.stringify(msgDetail))} }
+      );
+  
+      res.json({success:true})
+      console.log(sender, receiver)
+    }else{
+      console.log(sender, receiver)
+
+      const msgData = {
+        sender,
+        receiver,
+        msg: [JSON.parse(JSON.stringify(msgDetail))]
+      }
+
+      const newRecord = new ConversationModel(msgData)
+      await newRecord.save()
+
+      res.json({success:true})
+    }
+
+  } catch (err) {
+    console.log(err)
+    res.json({success:false})
+  }
+}
+
+export {userSignUp, userLogin, googleLogin, friendListManagement, saveConversationRecord}
