@@ -50,7 +50,16 @@ const userLogin = async (req, res) => {
       const hashedPasswordFromDB = isAccountExist.password;
       const isMatch = await bcrypt.compare(password, hashedPasswordFromDB);
       if(isMatch){
-        res.json({success:true, message:isAccountExist})
+        let friendArr = []
+        for(let i = 0; i<isAccountExist.friendList.length; i++) {
+          const friend = await userModel.findOne({mail: isAccountExist.friendList[i]})
+          friendArr.push(friend)
+        }
+        const histConversation = await ConversationModel.find({
+          $or: [{ sender: mail }, { receiver: mail }]
+        });
+
+        res.json({success:true, message:isAccountExist, friendInfo:friendArr, historyConversation: histConversation})
       }else{
         res.json({success:false, message:'Password Incorrect'})
       }
@@ -71,7 +80,17 @@ const googleLogin = async (req, res) => {
 
     const isAccountExist = await userModel.findOne({mail:mail, type: 'google'})
     if(isAccountExist){
-      res.json({success:true, message: isAccountExist})
+      let friendArr = []
+      for(let i = 0; i<isAccountExist.friendList.length; i++) {
+        const friend = await userModel.findOne({mail: isAccountExist.friendList[i]})
+        friendArr.push(friend)
+      }
+
+      const histConversation = await ConversationModel.find({
+        $or: [{ sender: mail }, { receiver: mail }]
+      });
+
+      res.json({success:true, message:isAccountExist, friendInfo:friendArr, historyConversation: histConversation})
     }else{
       const userData = {
         name,
@@ -81,7 +100,7 @@ const googleLogin = async (req, res) => {
       }
       const newRecord = new userModel(userData)
       await newRecord.save()
-      res.json({success:true, message: userData})
+      res.json({success:true, message: userData, friendInfo:[], historyConversation: []})
     }
   } catch (err) {
     console.log(err)
@@ -109,9 +128,14 @@ const friendListManagement = async (req, res) => {
         { $addToSet: { friendList: mail } },
       );
 
-      console.log(syncFriendList)
+      let friendArr = []
       
-      res.json({success:true, message: updatedUser.friendList})
+      for (let i = 0; i < updatedUser.friendList.length; i++) {
+        const friend = await userModel.findOne({ mail: updatedUser.friendList[i] });
+        friendArr.push(friend);
+      }
+      
+      res.json({success:true, message: friendArr})
     }else{
       res.json({success:false, message: 'Can not find the user'})
     }
