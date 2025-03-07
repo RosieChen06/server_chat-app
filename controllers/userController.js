@@ -150,23 +150,45 @@ const saveConversationRecord = async (req, res) => {
 
   try {
     const {sender, receiver, msgDetail} = req.body
+    const images = req.files
+
+    const images_ = images.filter((item)=> item !== undefined)
 
     const isConversationExist = await ConversationModel.findOne({sender, receiver})
+    let msgObj = JSON.parse(msgDetail)
     if(isConversationExist){
+      if(images_.length>0){
+        let imageUrl = await Promise.all(
+          images_.map(async(item)=>{
+              let result = await cloudinary.uploader.upload(item.path, {resource_type:'image'});
+              return result.secure_url
+          })
+        )
+        msgObj.image = imageUrl;
+      }
+
       await ConversationModel.updateOne(
         { sender, receiver }, 
-        { $push: { msg:  JSON.parse(JSON.stringify(msgDetail))} }
+        { $push: { msg:  msgObj } }
       );
   
       res.json({success:true})
-      console.log(sender, receiver)
+
     }else{
-      console.log(sender, receiver)
+      if(images_.length>0){
+        let imageUrl = await Promise.all(
+          images_.map(async(item)=>{
+              let result = await cloudinary.uploader.upload(item.path, {resource_type:'image'});
+              return result.secure_url
+          })
+        )
+        msgObj.image = imageUrl;
+      }
 
       const msgData = {
         sender,
         receiver,
-        msg: [JSON.parse(JSON.stringify(msgDetail))]
+        msg: msgObj
       }
 
       const newRecord = new ConversationModel(msgData)
