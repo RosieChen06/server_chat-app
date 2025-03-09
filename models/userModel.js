@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
     lastLoggin:{type: Date, default: Date.now()},
     status: {type: String, default: 'available'},
     friendList: {type: Array, default: []},
+    groupList: {type: Array, default: []},
     type: {type: String, required: true}
 })
 

@@ -56,7 +56,23 @@ const userLogin = async (req, res) => {
           friendArr.push(friend)
         }
         const histConversation = await ConversationModel.find({
-          $or: [{ sender: mail }, { receiver: mail }]
+          $or: [
+            { sender: mail }, // sender 和 mail 相等
+            { receiver: mail }, // receiver 和 mail 相等
+            {
+              // 添加 groupList 中的匹配条件
+              $or: isAccountExist.groupList.map((group) => {
+                const groupSender = group.split('%')[0];  // 获取 '%' 前的部分
+                
+                return {
+                  $or: [
+                    { sender: groupSender }, // sender 和 groupSender 相等
+                    { receiver: groupSender } // receiver 和 groupSender 相等
+                  ]
+                };
+              })
+            }
+          ]
         });
 
         res.json({success:true, message:isAccountExist, friendInfo:friendArr, historyConversation: histConversation})
@@ -87,7 +103,23 @@ const googleLogin = async (req, res) => {
       }
 
       const histConversation = await ConversationModel.find({
-        $or: [{ sender: mail }, { receiver: mail }]
+        $or: [
+          { sender: mail }, // sender 和 mail 相等
+          { receiver: mail }, // receiver 和 mail 相等
+          {
+            // 添加 groupList 中的匹配条件
+            $or: isAccountExist.groupList.map((group) => {
+              const groupSender = group.split('%')[0];  // 获取 '%' 前的部分
+              
+              return {
+                $or: [
+                  { sender: groupSender }, // sender 和 groupSender 相等
+                  { receiver: groupSender } // receiver 和 groupSender 相等
+                ]
+              };
+            })
+          }
+        ]
       });
 
       res.json({success:true, message:isAccountExist, friendInfo:friendArr, historyConversation: histConversation})
@@ -146,61 +178,133 @@ const friendListManagement = async (req, res) => {
   }
 }
 
-const saveConversationRecord = async (req, res) => {
+// const saveConversationRecord = async (req, res) => {
+
+//   try {
+//     const {sender, receiver, msgDetail} = req.body
+//     const images = req.files
+
+//     const images_ = images.filter((item)=> item !== undefined)
+
+//     const isConversationExist = await ConversationModel.findOne({sender, receiver})
+//     let msgObj = JSON.parse(msgDetail)
+//     if(isConversationExist){
+//       if(images_.length>0){
+//         let imageUrl = await Promise.all(
+//           images_.map(async(item)=>{
+//               let result = await cloudinary.uploader.upload(item.path, {resource_type:'image'});
+//               return result.secure_url
+//           })
+//         )
+//         msgObj.image = imageUrl;
+//       }
+
+//       await ConversationModel.updateOne(
+//         { sender, receiver }, 
+//         { $push: { msg:  msgObj } }
+//       );
+  
+//       res.json({success:true})
+
+//     }else{
+//       if(images_.length>0){
+//         let imageUrl = await Promise.all(
+//           images_.map(async(item)=>{
+//               let result = await cloudinary.uploader.upload(item.path, {resource_type:'image'});
+//               return result.secure_url
+//           })
+//         )
+//         msgObj.image = imageUrl;
+//       }
+
+//       const msgData = {
+//         sender,
+//         receiver,
+//         msg: msgObj
+//       }
+
+//       const newRecord = new ConversationModel(msgData)
+//       await newRecord.save()
+
+//       res.json({success:true})
+//     }
+
+//   } catch (err) {
+//     console.log(err)
+//     res.json({success:false})
+//   }
+// }
+
+const updateGroupList = async (req, res) => {
 
   try {
-    const {sender, receiver, msgDetail} = req.body
-    const images = req.files
+    const { group_member, group_id } = req.body 
 
-    const images_ = images.filter((item)=> item !== undefined)
-
-    const isConversationExist = await ConversationModel.findOne({sender, receiver})
-    let msgObj = JSON.parse(msgDetail)
-    if(isConversationExist){
-      if(images_.length>0){
-        let imageUrl = await Promise.all(
-          images_.map(async(item)=>{
-              let result = await cloudinary.uploader.upload(item.path, {resource_type:'image'});
-              return result.secure_url
-          })
-        )
-        msgObj.image = imageUrl;
-      }
-
-      await ConversationModel.updateOne(
-        { sender, receiver }, 
-        { $push: { msg:  msgObj } }
+    for(let i = 0 ; i < JSON.parse(group_member).length; i++){
+      await userModel.findOneAndUpdate(
+        { mail: JSON.parse(group_member)[i] },
+        { $push: { groupList: group_id } },
+        { new: true } 
       );
-  
-      res.json({success:true})
-
-    }else{
-      if(images_.length>0){
-        let imageUrl = await Promise.all(
-          images_.map(async(item)=>{
-              let result = await cloudinary.uploader.upload(item.path, {resource_type:'image'});
-              return result.secure_url
-          })
-        )
-        msgObj.image = imageUrl;
-      }
-
-      const msgData = {
-        sender,
-        receiver,
-        msg: msgObj
-      }
-
-      const newRecord = new ConversationModel(msgData)
-      await newRecord.save()
-
-      res.json({success:true})
     }
+
+    const result = await userModel.find({
+      'groupList': { $in: [group_id] }
+    });
+
+    res.json({success:true, message: result})
 
   } catch (err) {
     console.log(err)
-    res.json({success:false})
+    res.json({success:false, message:'Fail with login'})
   }
 }
 
-export {userSignUp, userLogin, googleLogin, friendListManagement, saveConversationRecord}
+const getGroupMember = async (req, res) => {
+
+  try {
+    const { group_id } = req.body 
+
+    console.log(group_id)
+
+    const result = await userModel.find({
+      'groupList': { $in: [group_id] }
+    });
+
+    res.json({success:true, message: result})
+
+  } catch (err) {
+    console.log(err)
+    res.json({success:false, message:'Fail with login'})
+  }
+}
+
+const existGroup = async (req, res) => {
+
+  try {
+    const { group_member, group_id, member_left } = req.body 
+    await userModel.findOneAndUpdate(
+      { mail: group_member },
+      { $pull: { groupList: group_id } }, 
+      { new: true }
+    )
+    const account = await userModel.findOne({mail: group_member})
+
+    if(member_left==='1'){
+      await ConversationModel.deleteMany({
+        $or: [
+          { sender: group_id.split('%')[0] },
+          { receiver: group_id.split('%')[0] }
+        ]
+      });
+    }
+
+    res.json({success:true, message: account})
+
+  } catch (err) {
+    console.log(err)
+    res.json({success:false, message:'Fail with login'})
+  }
+}
+
+export {userSignUp, userLogin, googleLogin, friendListManagement, updateGroupList, getGroupMember, existGroup}
