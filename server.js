@@ -15,6 +15,7 @@ import { uploader } from 'cloudinary';
 import { fileURLToPath } from 'url'; // 引入 fileURLToPath 函式
 import { dirname } from 'path'; 
 import ConversationModel from "./models/ConversationModel.js";
+import userModel from "./models/userModel.js";
 
 const app = express()
 const server = http.createServer(app)
@@ -30,72 +31,100 @@ connectCloudinary()
 
 io.on('connection', (socket) => {
 
-    const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename); // 取得當前檔案所在的目錄
+    socket.on('send_msg', async (data) => {
+        const __filename = fileURLToPath(import.meta.url);
+         const __dirname = dirname(__filename); // 取得當前檔案所在的目錄
+        const { sender, receiver, message, files } = data;
 
-socket.on('send_msg', async (data) => {
-    const { sender, receiver, message, files } = data;
+        try {
+            // 確認有檔案
+            if (files && files.length > 0) {
+                let imageUrl = await Promise.all(
+                    files.map(async (fileBuffer) => {
+                        // 生成一個檔案名稱
+                        const filename = `${Date.now()}.jpg`;  // 根據需求設置檔名和副檔名
 
-    try {
-        // 確認有檔案
-        if (files && files.length > 0) {
-            let imageUrl = await Promise.all(
-                files.map(async (fileBuffer) => {
-                    // 生成一個檔案名稱
-                    const filename = `${Date.now()}.jpg`;  // 根據需求設置檔名和副檔名
+                        // 儲存 Buffer 為檔案
+                        const filePath = path.join(__dirname, 'uploads', filename);
+                        fs.writeFileSync(filePath, fileBuffer);  // 儲存檔案
 
-                    // 儲存 Buffer 為檔案
-                    const filePath = path.join(__dirname, 'uploads', filename);
-                    fs.writeFileSync(filePath, fileBuffer);  // 儲存檔案
+                        // 上傳到 Cloudinary
+                        let result = await uploader.upload(filePath, { resource_type: 'image' });
 
-                    // 上傳到 Cloudinary
-                    let result = await uploader.upload(filePath, { resource_type: 'image' });
+                        // 刪除上傳後的檔案
+                        fs.unlinkSync(filePath);  // 刪除本地檔案
 
-                    // 刪除上傳後的檔案
-                    fs.unlinkSync(filePath);  // 刪除本地檔案
+                        return result.secure_url;  // 返回圖片的 URL
+                    })
+                );
 
-                    return result.secure_url;  // 返回圖片的 URL
-                })
-            );
+                message.image = imageUrl
+            }
 
-            message.image = imageUrl
-        }
-
-        const isConversationExist = await ConversationModel.findOne({sender, receiver})
-            if(isConversationExist){
-                await ConversationModel.updateOne(
-                    { sender, receiver }, 
-                    { $push: { msg:  message } }
-                  );
-                io.emit('receive_msg', { msgData:{
-                    sender,
-                    msg: message.message,
-                    datetime: message.datetime,
-                    receiver,
-                    image: message.image
-                } });
-            }else{
-                const msgData = {
-                    sender,
-                    receiver,
-                    msg: message
-                }
-
-                const newRecord = new ConversationModel(msgData)
-                await newRecord.save()
-                io.emit('receive_msg', { msgData:
-                    {
+            const isConversationExist = await ConversationModel.findOne({sender, receiver})
+                if(isConversationExist){
+                    await ConversationModel.updateOne(
+                        { sender, receiver }, 
+                        { $push: { msg:  message } }
+                    );
+                    io.emit('receive_msg', { msgData:{
                         sender,
                         msg: message.message,
                         datetime: message.datetime,
-                        receiver,
+                        receiver: String(receiver),
                         image: message.image
+                    } });
+                }else{
+                    const msgData = {
+                        sender,
+                        receiver,
+                        msg: message
                     }
-                 });
+
+                    const newRecord = new ConversationModel(msgData)
+                    await newRecord.save()
+                    io.emit('receive_msg', { msgData:
+                        {
+                            sender,
+                            msg: message.message,
+                            datetime: message.datetime,
+                            receiver: String(receiver),
+                            image: message.image
+                        }
+                    });
+                }
+            }catch (error) {
+            console.error('Error while uploading files:', error);
+        }
+    });
+
+    socket.on('exit_group', async (data) => {
+
+        try {
+            const { group_member, group_id, member_left } = data 
+            await userModel.findOneAndUpdate(
+              { mail: group_member },
+              { $pull: { groupList: group_id } }, 
+              { new: true }
+            )
+            const account = await userModel.findOne({mail: group_member})
+        
+            if(member_left==='1'){
+              await ConversationModel.deleteMany({
+                $or: [
+                  { sender: group_id.split('%')[0] },
+                  { receiver: group_id.split('%')[0] }
+                ]
+              });
             }
-        }catch (error) {
-        console.error('Error while uploading files:', error);
-      }
+
+            io.emit('exit_done', { msgData:{
+                account
+            } });
+        
+          } catch (err) {
+            console.log(err)
+          }
     });
 
     socket.on('disconnect', () => {

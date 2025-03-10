@@ -178,63 +178,6 @@ const friendListManagement = async (req, res) => {
   }
 }
 
-// const saveConversationRecord = async (req, res) => {
-
-//   try {
-//     const {sender, receiver, msgDetail} = req.body
-//     const images = req.files
-
-//     const images_ = images.filter((item)=> item !== undefined)
-
-//     const isConversationExist = await ConversationModel.findOne({sender, receiver})
-//     let msgObj = JSON.parse(msgDetail)
-//     if(isConversationExist){
-//       if(images_.length>0){
-//         let imageUrl = await Promise.all(
-//           images_.map(async(item)=>{
-//               let result = await cloudinary.uploader.upload(item.path, {resource_type:'image'});
-//               return result.secure_url
-//           })
-//         )
-//         msgObj.image = imageUrl;
-//       }
-
-//       await ConversationModel.updateOne(
-//         { sender, receiver }, 
-//         { $push: { msg:  msgObj } }
-//       );
-  
-//       res.json({success:true})
-
-//     }else{
-//       if(images_.length>0){
-//         let imageUrl = await Promise.all(
-//           images_.map(async(item)=>{
-//               let result = await cloudinary.uploader.upload(item.path, {resource_type:'image'});
-//               return result.secure_url
-//           })
-//         )
-//         msgObj.image = imageUrl;
-//       }
-
-//       const msgData = {
-//         sender,
-//         receiver,
-//         msg: msgObj
-//       }
-
-//       const newRecord = new ConversationModel(msgData)
-//       await newRecord.save()
-
-//       res.json({success:true})
-//     }
-
-//   } catch (err) {
-//     console.log(err)
-//     res.json({success:false})
-//   }
-// }
-
 const updateGroupList = async (req, res) => {
 
   try {
@@ -281,7 +224,7 @@ const getGroupMember = async (req, res) => {
 
 const existGroup = async (req, res) => {
 
-  try {
+  try { 
     const { group_member, group_id, member_left } = req.body 
     await userModel.findOneAndUpdate(
       { mail: group_member },
