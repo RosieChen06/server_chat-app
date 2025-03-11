@@ -178,31 +178,6 @@ const friendListManagement = async (req, res) => {
   }
 }
 
-const updateGroupList = async (req, res) => {
-
-  try {
-    const { group_member, group_id } = req.body 
-
-    for(let i = 0 ; i < JSON.parse(group_member).length; i++){
-      await userModel.findOneAndUpdate(
-        { mail: JSON.parse(group_member)[i] },
-        { $push: { groupList: group_id } },
-        { new: true } 
-      );
-    }
-
-    const result = await userModel.find({
-      'groupList': { $in: [group_id] }
-    });
-
-    res.json({success:true, message: result})
-
-  } catch (err) {
-    console.log(err)
-    res.json({success:false, message:'Fail with login'})
-  }
-}
-
 const getGroupMember = async (req, res) => {
 
   try {
@@ -222,32 +197,4 @@ const getGroupMember = async (req, res) => {
   }
 }
 
-const existGroup = async (req, res) => {
-
-  try { 
-    const { group_member, group_id, member_left } = req.body 
-    await userModel.findOneAndUpdate(
-      { mail: group_member },
-      { $pull: { groupList: group_id } }, 
-      { new: true }
-    )
-    const account = await userModel.findOne({mail: group_member})
-
-    if(member_left==='1'){
-      await ConversationModel.deleteMany({
-        $or: [
-          { sender: group_id.split('%')[0] },
-          { receiver: group_id.split('%')[0] }
-        ]
-      });
-    }
-
-    res.json({success:true, message: account})
-
-  } catch (err) {
-    console.log(err)
-    res.json({success:false, message:'Fail with login'})
-  }
-}
-
-export {userSignUp, userLogin, googleLogin, friendListManagement, updateGroupList, getGroupMember, existGroup}
+export {userSignUp, userLogin, googleLogin, friendListManagement, getGroupMember}

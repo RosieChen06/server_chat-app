@@ -30,10 +30,10 @@ connectDB()
 connectCloudinary()
 
 io.on('connection', (socket) => {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
 
     socket.on('send_msg', async (data) => {
-        const __filename = fileURLToPath(import.meta.url);
-         const __dirname = dirname(__filename); // 取得當前檔案所在的目錄
         const { sender, receiver, message, files } = data;
 
         try {
@@ -119,8 +119,66 @@ io.on('connection', (socket) => {
             }
 
             io.emit('exit_done', { msgData:{
-                account
+                account, member_left, group_id
             } });
+        
+          } catch (err) {
+            console.log(err)
+          }
+    });
+
+    socket.on('create_group', async (data) => {
+
+        try {
+            const { group_member, group_id } = data  
+        
+            for(let i = 0 ; i < JSON.parse(group_member).length; i++){
+              await userModel.findOneAndUpdate(
+                { mail: JSON.parse(group_member)[i] },
+                { $push: { groupList: group_id } },
+                { new: true } 
+              );
+            }
+        
+            const result = await userModel.find({
+              'groupList': { $in: [group_id] }
+            });
+        
+            io.emit('group_created', { msgData: result, group_name:  group_id});
+        
+          } catch (err) {
+            console.log(err)
+            res.json({success:false, message:'Fail with login'})
+          }
+    });
+
+    socket.on('add_friend', async (data) => {
+
+        try {
+            const { friend, adder, deleteOrAdd } = data 
+            const isExist = await ConversationModel.findOne({mail: friend})
+            if(isExist){
+                if(deleteOrAdd==='add'){
+                    await userModel.findOneAndUpdate(
+                        { mail: friend.toLowerCase() },
+                        { $push: { friendList: adder } }, 
+                        { new: true }
+                    )
+                    await userModel.findOneAndUpdate(
+                        { mail: adder.toLowerCase() },
+                        { $push: { friendList: friend } }, 
+                        { new: true }
+                    )
+                }
+            }else{
+                socket.emit('friend_added', { msgData :false });
+                return
+            }
+            const msgData = await userModel.find({
+                mail: { $in: [friend.toLowerCase(), adder.toLowerCase()] }
+              });
+
+            io.emit('friend_added', { msgData });
         
           } catch (err) {
             console.log(err)
