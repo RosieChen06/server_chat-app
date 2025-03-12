@@ -51,6 +51,7 @@ const userLogin = async (req, res) => {
       const isMatch = await bcrypt.compare(password, hashedPasswordFromDB);
       if(isMatch){
         let friendArr = []
+
         for(let i = 0; i<isAccountExist.friendList.length; i++) {
           const friend = await userModel.findOne({mail: isAccountExist.friendList[i]})
           friendArr.push(friend)

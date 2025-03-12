@@ -156,7 +156,7 @@ io.on('connection', (socket) => {
 
         try {
             const { friend, adder, deleteOrAdd } = data 
-            const isExist = await ConversationModel.findOne({mail: friend})
+            const isExist = await userModel.findOne({mail: friend})
             if(isExist){
                 if(deleteOrAdd==='add'){
                     await userModel.findOneAndUpdate(
@@ -183,6 +183,42 @@ io.on('connection', (socket) => {
           } catch (err) {
             console.log(err)
           }
+    });
+
+    socket.on('edit_profile', async (data) => {
+        const { user_mail, user_name, file } = data;
+
+        try {
+            let imageUrl = null;
+
+            if (file) {
+                const filename = `${Date.now()}.jpg`;
+                const filePath = path.join(__dirname, 'uploads', filename);
+                fs.writeFileSync(filePath, file);
+
+                let result = await uploader.upload(filePath, { resource_type: 'image' });
+
+                fs.unlinkSync(filePath);
+
+                imageUrl = result.secure_url; 
+            }
+
+            const updatedUser = await userModel.findOneAndUpdate(
+                { mail: user_mail }, 
+                { 
+                    $set: { 
+                        name: user_name, 
+                        image: imageUrl 
+                    } 
+                },
+                { new: true, returnDocument: 'after' }  
+            );
+
+            io.emit('profile_changed', { msgData: updatedUser });
+
+            }catch (error) {
+            console.error('Error while uploading files:', error);
+        }
     });
 
     socket.on('disconnect', () => {
