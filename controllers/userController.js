@@ -141,44 +141,6 @@ const googleLogin = async (req, res) => {
   }
 }
 
-const friendListManagement = async (req, res) => {
-
-  try {
-    const {email, type, friendList, TAmail} = req.body
-    const mail = email.toLowerCase()
-
-    const isAccountExist = await userModel.findOne({mail:TAmail})
-    if(isAccountExist){
-
-      const updatedUser = await userModel.findOneAndUpdate(
-        { mail, type }, 
-        { $addToSet: { friendList: TAmail } },
-        { new: true }
-      );
-
-      const syncFriendList = await userModel.findOneAndUpdate(
-        { mail: TAmail }, 
-        { $addToSet: { friendList: mail } },
-      );
-
-      let friendArr = []
-      
-      for (let i = 0; i < updatedUser.friendList.length; i++) {
-        const friend = await userModel.findOne({ mail: updatedUser.friendList[i] });
-        friendArr.push(friend);
-      }
-      
-      res.json({success:true, message: friendArr})
-    }else{
-      res.json({success:false, message: 'Can not find the user'})
-    }
-
-  } catch (err) {
-    console.log(err)
-    res.json({success:false})
-  }
-}
-
 const getGroupMember = async (req, res) => {
 
   try {
@@ -198,4 +160,4 @@ const getGroupMember = async (req, res) => {
   }
 }
 
-export {userSignUp, userLogin, googleLogin, friendListManagement, getGroupMember}
+export {userSignUp, userLogin, googleLogin, getGroupMember}
