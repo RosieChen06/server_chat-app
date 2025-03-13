@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs';
 import { v2 as cloudinary } from 'cloudinary'
 import userModel from '../models/userModel.js'
 import ConversationModel from '../models/ConversationModel.js'
