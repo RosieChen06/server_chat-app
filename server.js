@@ -29,16 +29,16 @@ const io = new Server(server, {
 connectDB()
 connectCloudinary()
 
-const uploadDir = path.join(process.cwd(), 'uploads');
+// const uploadDir = path.join(process.cwd(), 'uploads');
 
-// 檢查資料夾是否存在
-if (!fs.existsSync(uploadDir)) {
-  // 如果不存在，則創建資料夾
-  fs.mkdirSync(uploadDir);
-  console.log('uploads folder has been created!');
-} else {
-  console.log('uploads folder already exists.');
-}
+// // 檢查資料夾是否存在
+// if (!fs.existsSync(uploadDir)) {
+//   // 如果不存在，則創建資料夾
+//   fs.mkdirSync(uploadDir);
+//   console.log('uploads folder has been created!');
+// } else {
+//   console.log('uploads folder already exists.');
+// }
 
 io.on('connection', (socket) => {
     const __filename = fileURLToPath(import.meta.url);
@@ -52,19 +52,22 @@ io.on('connection', (socket) => {
             if (files && files.length > 0) {
                 let imageUrl = await Promise.all(
                     files.map(async (fileBuffer) => {
-                        // 生成一個檔案名稱
-                        const filename = `${Date.now()}.jpg`;  // 根據需求設置檔名和副檔名
-
-                        // 儲存 Buffer 為檔案
-                        const filePath = path.join(__dirname, 'uploads', filename);
-                        fs.writeFileSync(filePath, fileBuffer);  // 儲存檔案
-
-                        // 上傳到 Cloudinary
-                        let result = await uploader.upload(filePath, { resource_type: 'image' });
-
-                        // 刪除上傳後的檔案
-                        fs.unlinkSync(filePath);  // 刪除本地檔案
-
+                        // 直接將 Buffer 上傳到 Cloudinary
+                        let result = await cloudinary.uploader.upload_stream(
+                            { resource_type: 'image' },
+                            (error, result) => {
+                                if (error) {
+                                    console.log('Upload failed:', error);
+                                    return null;
+                                }
+                                return result.secure_url;
+                            }
+                        );
+                        
+                        // 使用 Pipe 流的方式傳遞 Buffer 到 Cloudinary
+                        const bufferStream = require('streamifier').createReadStream(fileBuffer);
+                        bufferStream.pipe(result);
+                
                         return result.secure_url;  // 返回圖片的 URL
                     })
                 );
