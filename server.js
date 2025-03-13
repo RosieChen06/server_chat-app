@@ -29,6 +29,17 @@ const io = new Server(server, {
 connectDB()
 connectCloudinary()
 
+const uploadDir = path.join(process.cwd(), 'uploads');
+
+// 檢查資料夾是否存在
+if (!fs.existsSync(uploadDir)) {
+  // 如果不存在，則創建資料夾
+  fs.mkdirSync(uploadDir);
+  console.log('uploads folder has been created!');
+} else {
+  console.log('uploads folder already exists.');
+}
+
 io.on('connection', (socket) => {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
@@ -152,6 +163,31 @@ io.on('connection', (socket) => {
           }
     });
 
+    socket.on('edit-groupName', async (data) => {
+
+        try {
+            const { member, groupname } = data  
+            const member_parse = JSON.parse(member)
+        
+            const updateResults = [];
+
+            for (let i = 0; i < member_parse.length; i++) {
+            const updatedDoc = await userModel.findOneAndUpdate(
+                { mail: member_parse[i].mail },
+                { groupList: member_parse[i].groupList },
+                { new: true }
+            );
+            updateResults.push(updatedDoc);  // 把每次更新後的結果存入陣列
+            }
+        
+            io.emit('groupName_change', { msgData: updateResults, groupname});
+        
+          } catch (err) {
+            console.log(err)
+            res.json({success:false, message:'Fail with login'})
+          }
+    });
+
     socket.on('add_friend', async (data) => {
 
         try {
@@ -179,6 +215,35 @@ io.on('connection', (socket) => {
               });
 
             io.emit('friend_added', { msgData });
+        
+          } catch (err) {
+            console.log(err)
+          }
+    });
+
+    socket.on('delete_friend', async (data) => {
+
+        try {
+            const { friend, adder, deleteOrAdd } = data 
+
+            if(deleteOrAdd==='remove'){
+                await userModel.findOneAndUpdate(
+                    { mail: friend },
+                    { $pull: { friendList: adder } }, 
+                    { new: true }
+                )
+                await userModel.findOneAndUpdate(
+                    { mail: adder },
+                    { $pull: { friendList: friend } }, 
+                    { new: true }
+                )
+            }
+
+            const msgData = await userModel.find({
+                mail: { $in: [friend, adder] }
+            });
+
+            io.emit('friend_remove', { msgData });
         
           } catch (err) {
             console.log(err)
