@@ -7,12 +7,9 @@ const userSignUp = async (req, res) => {
 
   try {
     const {name, email, password } = req.body
-    // const image = req.file
+
     const salt = await bcrypt.genSalt(10)
     const hashedPassword = await bcrypt.hash(password, salt)
-
-    // const imageUpload = await cloudinary.uploader.upload(image.path, {resource_type:'image'})
-    // const imageUrl = imageUpload.secure_url
 
     const mail = email.toLowerCase()
 
@@ -23,15 +20,25 @@ const userSignUp = async (req, res) => {
       type: 'sign-up'
     }
 
-    const isExist = await userModel.find({mail:mail})
-    if(isExist.length===0){
-      const newRecord = new userModel(userData)
-      await newRecord.save()
-      res.json({success:true, message:'Sign up success!'})
-    }else{
-      res.json({success:false, message:'User already exist'})
+    const user = await userModel.findOne({ mail: mail });
+
+    if (!user) {
+      // 新用戶註冊
+      const newRecord = new userModel(userData);
+      await newRecord.save();
+      return res.json({ success: true, message: 'Sign up success!' });
     }
 
+    else if (!user.password) {
+      // 使用 Google 登入，並新增密碼
+      user.password = hashedPassword;
+      await user.save();
+      return res.json({ success: true, message: 'Password set successfully!' });
+    }
+
+    else {
+      res.json({success:false, message:'User already exist'})
+    }
 
   } catch (err) {
     console.log(err)
@@ -44,7 +51,7 @@ const userLogin = async (req, res) => {
     const {email, password } = req.body
     const mail = email.toLowerCase()
     
-    const isAccountExist = await userModel.findOne({mail: mail, type: 'sign-up'})
+    const isAccountExist = await userModel.exists({ mail: mail, password: { $exists: true } });
 
     if(isAccountExist){
       const hashedPasswordFromDB = isAccountExist.password;
