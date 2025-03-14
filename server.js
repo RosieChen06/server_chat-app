@@ -25,6 +25,10 @@ const io = new Server(server, {
     }
 })
 
+app.get("/", (req, res) => {
+  res.send("後端 API 正常運行！");
+});
+
 connectDB()
 connectCloudinary()
 
