@@ -51,7 +51,7 @@ const userLogin = async (req, res) => {
     const {email, password } = req.body
     const mail = email.toLowerCase()
     
-    const isAccountExist = await userModel.exists({ mail: mail, password: { $exists: true } });
+    const isAccountExist = await userModel.findOne({ mail: mail, password: { $exists: true } });
 
     if(isAccountExist){
       const hashedPasswordFromDB = isAccountExist.password;
