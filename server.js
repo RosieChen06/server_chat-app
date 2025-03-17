@@ -32,6 +32,16 @@ app.get("/", (req, res) => {
 connectDB()
 connectCloudinary()
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const uploadDir = path.join(__dirname, 'uploads');
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('📁 uploads 資料夾已建立');
+}
+
 // const uploadDir = path.join(process.cwd(), 'uploads');
 
 io.on('connection', (socket) => {
@@ -247,6 +257,7 @@ io.on('connection', (socket) => {
 
     socket.on('edit_profile', async (data) => {
         const { user_mail, user_name, file } = data;
+        console.log(user_mail, user_name, file)
 
         try {
             let imageUrl = null;
