@@ -50,6 +50,7 @@ io.on('connection', (socket) => {
 
     socket.on('send_msg', async (data) => {
         const { sender, receiver, message, files } = data;
+        console.log(sender, receiver)
 
         try {
             // 確認有檔案
