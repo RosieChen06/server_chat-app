@@ -88,7 +88,8 @@ io.on('connection', (socket) => {
                         msg: message.message,
                         datetime: message.datetime,
                         receiver: String(receiver),
-                        image: message.image
+                        image: message.image,
+                        status: 'sent'
                     } });
                 }else{
                     const msgData = {
