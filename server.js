@@ -221,7 +221,7 @@ io.on('connection', (socket) => {
                 mail: { $in: [friend.toLowerCase(), adder.toLowerCase()] }
               });
 
-            io.emit('friend_added', { msgData });
+            io.emit('friend_added', { msgData, adder });
         
           } catch (err) {
             console.log(err)
