@@ -148,7 +148,7 @@ io.on('connection', (socket) => {
     socket.on('create_group', async (data) => {
 
         try {
-            const { group_member, group_id } = data  
+            const { group_member, group_id, creator } = data  
         
             for(let i = 0 ; i < JSON.parse(group_member).length; i++){
               await userModel.findOneAndUpdate(
@@ -162,7 +162,7 @@ io.on('connection', (socket) => {
               'groupList': { $in: [group_id] }
             });
         
-            io.emit('group_created', { msgData: result, group_name:  group_id});
+            io.emit('group_created', { msgData: result, group_name:  group_id, creator});
         
           } catch (err) {
             console.log(err)
