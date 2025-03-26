@@ -42,8 +42,6 @@ if (!fs.existsSync(uploadDir)) {
   console.log('📁 uploads 資料夾已建立');
 }
 
-// const uploadDir = path.join(process.cwd(), 'uploads');
-
 io.on('connection', (socket) => {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
