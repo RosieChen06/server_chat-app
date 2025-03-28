@@ -263,27 +263,48 @@ io.on('connection', (socket) => {
             let imageUrl = null;
 
             if (file) {
-                const filename = `${Date.now()}.jpg`;
-                const filePath = path.join(__dirname, 'uploads', filename);
-                fs.writeFileSync(filePath, file);
-
-                let result = await uploader.upload(filePath, { resource_type: 'image' });
-
-                fs.unlinkSync(filePath);
-
-                imageUrl = result.secure_url; 
+              const filename = `${Date.now()}.jpg`;
+              const filePath = path.join(__dirname, 'uploads', filename);
+              fs.writeFileSync(filePath, file);
+  
+              // 上傳圖片至 Cloudinary
+              let result = await uploader.upload(filePath, { 
+                  resource_type: 'image',
+              });
+  
+              // 設定 URL 轉換參數
+              const transformationParams = "c_crop,w_900,h_900,g_auto,q_auto,f_auto";
+  
+              // 將轉換參數加到 Cloudinary 返回的 URL
+              let imageUrl = result.secure_url;
+              let transformedUrl = imageUrl.replace("/image/upload/", `/image/upload/${transformationParams}/`);
+  
+              console.log('Transformed Image URL:', transformedUrl);
+  
+              // 更新 MongoDB 資料
+              const updatedUser = await userModel.findOneAndUpdate(
+                  { mail: user_mail }, 
+                  { 
+                      $set: { 
+                          name: user_name, 
+                          image: transformedUrl  // 儲存轉換後的 URL
+                      } 
+                  },
+                  { new: true, returnDocument: 'after' }
+                );
+    
+                if (updatedUser) {
+                    console.log('User updated successfully:', updatedUser);
+                    io.emit('profile_changed', { msgData: updatedUser });
+                } else {
+                    console.log('User not found or update failed.');
+                }
+    
+                fs.unlinkSync(filePath); // 上傳後刪除本地檔案
+    
+            } else {
+                console.log('No file provided.');
             }
-
-            const updatedUser = await userModel.findOneAndUpdate(
-                { mail: user_mail }, 
-                { 
-                    $set: { 
-                        name: user_name, 
-                        image: imageUrl 
-                    } 
-                },
-                { new: true, returnDocument: 'after' }  
-            );
 
             io.emit('profile_changed', { msgData: updatedUser });
 
